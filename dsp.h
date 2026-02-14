@@ -50,8 +50,9 @@ struct DriftGenerator
     }
 
     // Returns slowly varying value approximately in [-1, 1].
-    // alpha controls rate of change (~0.0001 at 48kHz gives ~1Hz drift).
-    float process( float alpha )
+    // alpha controls rate of change (TWO_PI * rateHz / sampleRate).
+    // scale provides rate-independent normalization (caller computes 0.82/sqrt(alpha)).
+    float process( float alpha, float scale )
     {
         // xorshift32 PRNG
         rng ^= rng << 13;
@@ -64,10 +65,8 @@ struct DriftGenerator
         // One-pole lowpass: smooths white noise into slow random walk
         filtered += alpha * ( noise - filtered );
 
-        // Scale to approximately [-1, 1] range and soft-clamp.
-        // With alpha ~0.0001, raw filtered std ~0.007.
-        // Scale by 130 to fill ±1 range, then clamp.
-        float out = filtered * 130.0f;
+        // Scale to approximately [-1, 1] range with rate-independent normalization.
+        float out = filtered * scale;
         if ( out > 1.0f ) out = 1.0f;
         else if ( out < -1.0f ) out = -1.0f;
 
@@ -227,6 +226,28 @@ inline float wave_warp_blep( float phase, float warp, float dt )
         float pls = waveform_pulse_blep( phase, dt );
         return saw + t * ( pls - saw );
     }
+}
+
+// Soft clip: rational saturator from Four's DSP.
+// x * (27 + x²) / (27 + 9x²), clamped to ±1 at ±3.
+inline float soft_clip( float x )
+{
+    if ( x > 3.0f ) return 1.0f;
+    if ( x < -3.0f ) return -1.0f;
+    float x2 = x * x;
+    return x * ( 27.0f + x2 ) / ( 27.0f + 9.0f * x2 );
+}
+
+// Symmetric wave folder: sin-based fold that wraps signal back within [-1, 1].
+inline float fold_symmetric( float x )
+{
+    return sinf( x * ( TWO_PI * 0.25f ) );  // sin(x * π/2)
+}
+
+// Half-band downsample: average two oversampled values.
+inline float downsample_2x( float s0, float s1 )
+{
+    return ( s0 + s1 ) * 0.5f;
 }
 
 } // namespace flux
