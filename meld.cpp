@@ -8,13 +8,13 @@ static const int NUM_VOICES = 8;
 
 // --- Algorithm struct ---
 
-struct _fluxAlgorithm : public _NT_algorithm
+struct _meldAlgorithm : public _NT_algorithm
 {
     // Phase state (free-running, never reset on Note-On)
     float phase[NUM_VOICES];
 
     // Drift generators (one per voice, independent random walks)
-    flux::DriftGenerator drift[NUM_VOICES];
+    meld::DriftGenerator drift[NUM_VOICES];
 
     // Cached parameters (set by parameterChanged)
     uint8_t oscEnabled[NUM_VOICES];      // 0=off, 1=on
@@ -37,9 +37,9 @@ struct _fluxAlgorithm : public _NT_algorithm
     uint8_t midiGate;        // 1=on, 0=off
     uint8_t midiChannel;     // 0-15
 
-    flux::DCBlocker dcBlocker;
+    meld::DCBlocker dcBlocker;
 
-    _fluxAlgorithm()
+    _meldAlgorithm()
     {
         memset( phase, 0, sizeof(phase) );
 
@@ -114,7 +114,7 @@ enum { kOscEnable = 0, kOscTranspose = 1, kOscShape = 2 };
 
 static const char* offOnStrings[] = { "Off", "On", NULL };
 static const char* oversamplingStrings[] = { "Off", "2x", NULL };
-static const char* versionStrings[] = { FLUX_VERSION, NULL };
+static const char* versionStrings[] = { MELD_VERSION, NULL };
 
 // --- Parameter definitions ---
 
@@ -237,7 +237,7 @@ static void calculateRequirements(
     const int32_t* specifications )
 {
     req.numParameters = ARRAY_SIZE(parameters);
-    req.sram = sizeof( _fluxAlgorithm );
+    req.sram = sizeof( _meldAlgorithm );
     req.dram = 0;
     req.dtc = 0;
     req.itc = 0;
@@ -248,7 +248,7 @@ static _NT_algorithm* construct(
     const _NT_algorithmRequirements& req,
     const int32_t* specifications )
 {
-    _fluxAlgorithm* alg = new ( ptrs.sram ) _fluxAlgorithm();
+    _meldAlgorithm* alg = new ( ptrs.sram ) _meldAlgorithm();
     alg->parameters = parameters;
     alg->parameterPages = &parameterPages;
     return alg;
@@ -258,7 +258,7 @@ static _NT_algorithm* construct(
 
 static void parameterChanged( _NT_algorithm* self, int parameter )
 {
-    _fluxAlgorithm* p = (_fluxAlgorithm*)self;
+    _meldAlgorithm* p = (_meldAlgorithm*)self;
 
     // Per-oscillator parameters
     for ( int osc = 0; osc < NUM_VOICES; ++osc )
@@ -334,7 +334,7 @@ static void step(
     float* busFrames,
     int numFramesBy4 )
 {
-    _fluxAlgorithm* p = (_fluxAlgorithm*)self;
+    _meldAlgorithm* p = (_meldAlgorithm*)self;
     int numFrames = numFramesBy4 * 4;
 
     float* out = busFrames + ( p->v[kParamOutput] - 1 ) * numFrames;
@@ -345,12 +345,12 @@ static void step(
     float effectiveSampleRate = sampleRate * (float)actualOversample;
 
     // Drift filter coefficient: based on drift rate, at base sample rate (not oversampled)
-    float driftAlpha = flux::TWO_PI * p->driftRateHz / sampleRate;
+    float driftAlpha = meld::TWO_PI * p->driftRateHz / sampleRate;
     float driftScale = 0.82f / sqrtf( driftAlpha );
 
     // Precompute bend drive and normalization
     float bendDrive = 1.0f + p->globalBend * 8.0f;
-    float bendNorm = 1.0f / flux::soft_clip( bendDrive );
+    float bendNorm = 1.0f / meld::soft_clip( bendDrive );
 
     // Read CV buses (0 = not connected)
     const float* cvVOct = p->v[kParamVOctCV]
@@ -376,7 +376,7 @@ static void step(
         // Base frequency: MIDI overrides V/OCT when gate is on
         float baseFreq = p->baseFrequency;
         if ( cvVOct && !p->midiGate )
-            baseFreq = flux::voct_to_freq( cvVOct[i] );
+            baseFreq = meld::voct_to_freq( cvVOct[i] );
 
         float freq = baseFreq * p->pitchBendFactor * p->fineTune;
 
@@ -401,7 +401,7 @@ static void step(
         if ( cvGlobalBend )
         {
             curBendDrive = 1.0f + bendAmt * 8.0f;
-            curBendNorm = 1.0f / flux::soft_clip( curBendDrive );
+            curBendNorm = 1.0f / meld::soft_clip( curBendDrive );
         }
 
         // Global VCA with CV
@@ -425,7 +425,7 @@ static void step(
 
                 // Compute drift pitch deviation (up to +/-50 cents at max drift)
                 float driftCents = driftVal[v] * driftAmt * 50.0f;
-                float driftMult = flux::cents_to_mult_fast( driftCents );
+                float driftMult = meld::cents_to_mult_fast( driftCents );
 
                 // Voice frequency with transpose and drift
                 float voiceFreq = freq * p->oscTransposeMult[v] * driftMult;
@@ -434,14 +434,14 @@ static void step(
                 float inc = voiceFreq / effectiveSampleRate;
 
                 // Advance phase (free-running, never reset)
-                flux::phase_advance( p->phase[v], inc );
+                meld::phase_advance( p->phase[v], inc );
 
                 // Generate waveform with PolyBLEP anti-aliasing
                 float sample;
                 if ( p->oscShape[v] > 0.0f )
-                    sample = flux::wave_warp_blep( p->phase[v], p->oscShape[v], inc );
+                    sample = meld::wave_warp_blep( p->phase[v], p->oscShape[v], inc );
                 else
-                    sample = flux::oscillator_sine( p->phase[v] );
+                    sample = meld::oscillator_sine( p->phase[v] );
 
                 mix += sample;
             }
@@ -451,12 +451,12 @@ static void step(
 
             // Post-mix bend (drive/saturation)
             if ( bendAmt > 0.0f )
-                mix = flux::soft_clip( mix * curBendDrive ) * curBendNorm;
+                mix = meld::soft_clip( mix * curBendDrive ) * curBendNorm;
 
             // Post-mix fold (wave folding)
             if ( foldAmt > 0.0f )
             {
-                float folded = flux::fold_symmetric( mix );
+                float folded = meld::fold_symmetric( mix );
                 mix += foldAmt * ( folded - mix );
             }
 
@@ -481,7 +481,7 @@ static void step(
                 }
                 else
                 {
-                    mix = flux::downsample_2x( p->dsBuffer, mix );
+                    mix = meld::downsample_2x( p->dsBuffer, mix );
                     mix = p->dcBlocker.process( mix );
                     if ( replace )
                         out[i] = mix;
@@ -501,7 +501,7 @@ static void midiMessage(
     uint8_t byte1,
     uint8_t byte2 )
 {
-    _fluxAlgorithm* p = (_fluxAlgorithm*)self;
+    _meldAlgorithm* p = (_meldAlgorithm*)self;
 
     uint8_t status  = byte0 & 0xF0;
     uint8_t channel = byte0 & 0x0F;
@@ -516,7 +516,7 @@ static void midiMessage(
         {
             p->midiNote = byte1;
             p->midiGate = 1;
-            p->baseFrequency = flux::midi_note_to_freq( byte1 );
+            p->baseFrequency = meld::midi_note_to_freq( byte1 );
             // No phase reset — free-running oscillators
         }
         else
@@ -611,9 +611,9 @@ static int parameterString( _NT_algorithm* self, int p, int v, char* buff )
 // --- Factory ---
 
 static const _NT_factory factory = {
-    .guid = NT_MULTICHAR('F', 'l', 'u', 'x'),
-    .name = "Flux",
-    .description = "Flux v" FLUX_VERSION " - 8-voice drift oscillator",
+    .guid = NT_MULTICHAR('M', 'e', 'l', 'd'),
+    .name = "Meld",
+    .description = "Meld v" MELD_VERSION " - 8-voice drift oscillator",
     .numSpecifications = 0,
     .specifications = NULL,
     .calculateStaticRequirements = NULL,

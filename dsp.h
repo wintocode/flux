@@ -1,13 +1,13 @@
-#ifndef FLUX_DSP_H
-#define FLUX_DSP_H
+#ifndef MELD_DSP_H
+#define MELD_DSP_H
 
-// Pure DSP functions for Flux 8-voice drift oscillator.
+// Pure DSP functions for Meld 8-voice drift oscillator.
 // No Disting NT API dependencies — testable on desktop.
 
 #include <math.h>
 #include <stdint.h>
 
-namespace flux {
+namespace meld {
 
 static constexpr float TWO_PI = 6.283185307179586f;
 
@@ -250,6 +250,6 @@ inline float downsample_2x( float s0, float s1 )
     return ( s0 + s1 ) * 0.5f;
 }
 
-} // namespace flux
+} // namespace meld
 
-#endif // FLUX_DSP_H
+#endif // MELD_DSP_H
