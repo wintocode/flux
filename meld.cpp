@@ -198,37 +198,6 @@ static const _NT_parameterPages parameterPages = {
     .pages = pages,
 };
 
-// --- MIDI CC mapping ---
-
-// CC14-45 -> 32 value parameters (excludes CV bus selectors and version)
-// 8 global + 24 per-osc (3x8)
-static const int8_t ccToParam[128] = {
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                     // 0-13
-    kParamDrift, kParamDriftRate, kParamFineTune, kParamOversampling, // 14-17
-    kParamGlobalBend, kParamGlobalFold, kParamMidiChannel, kParamGlobalVCA, // 18-21
-    kParamOsc1Enable, kParamOsc1Transpose, kParamOsc1Shape,          // 22-24
-    kParamOsc2Enable, kParamOsc2Transpose, kParamOsc2Shape,          // 25-27
-    kParamOsc3Enable, kParamOsc3Transpose, kParamOsc3Shape,          // 28-30
-    kParamOsc4Enable, kParamOsc4Transpose, kParamOsc4Shape,          // 31-33
-    kParamOsc5Enable, kParamOsc5Transpose, kParamOsc5Shape,          // 34-36
-    kParamOsc6Enable, kParamOsc6Transpose, kParamOsc6Shape,          // 37-39
-    kParamOsc7Enable, kParamOsc7Transpose, kParamOsc7Shape,          // 40-42
-    kParamOsc8Enable, kParamOsc8Transpose, kParamOsc8Shape,          // 43-45
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,               // 46-61
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,               // 62-77
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,               // 78-93
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,               // 94-109
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,               // 110-125
-    -1,-1                                                            // 126-127
-};
-
-// Scale CC value (0-127) to parameter's min..max range
-static int16_t scaleCCToParam( uint8_t ccValue, int paramIndex )
-{
-    int16_t mn = parameters[paramIndex].min;
-    int16_t mx = parameters[paramIndex].max;
-    return mn + (int16_t)( (int32_t)ccValue * ( mx - mn ) / 127 );
-}
 
 // --- Lifecycle ---
 
@@ -533,17 +502,6 @@ static void midiMessage(
             p->midiGate = 0;
         break;
 
-    case 0xB0:  // Control Change
-    {
-        if ( byte1 >= 128 ) break;
-        int8_t paramIdx = ccToParam[byte1];
-        if ( paramIdx >= 0 )
-        {
-            int16_t value = scaleCCToParam( byte2, paramIdx );
-            NT_setParameterFromAudio( NT_algorithmIndex(self), paramIdx, value );
-        }
-        break;
-    }
 
     case 0xE0:  // Pitch Bend
     {

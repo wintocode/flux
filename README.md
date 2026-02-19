@@ -95,35 +95,11 @@ Saw and pulse waveforms use PolyBLEP anti-aliasing to reduce digital artifacts.
 
 ## MIDI Control
 
-Meld responds to MIDI notes, pitch bend, and control change messages on the configured channel.
+Meld responds to MIDI notes and pitch bend on the configured channel.
 
 **Note On/Off** — Sets the base pitch. Oscillators are free-running (no phase reset on note-on), so there are no click artifacts.
 
 **Pitch Bend** — ±2 semitones range.
-
-**Control Change mapping:**
-
-| CC  | Parameter       | CC  | Parameter       |
-|-----|-----------------|-----|-----------------|
-| 14  | Drift           | 31  | Osc 4 Enable    |
-| 15  | Drift Rate      | 32  | Osc 4 Transpose |
-| 16  | Fine Tune       | 33  | Osc 4 Shape     |
-| 17  | Oversampling    | 34  | Osc 5 Enable    |
-| 18  | Global Bend     | 35  | Osc 5 Transpose |
-| 19  | Global Fold     | 36  | Osc 5 Shape     |
-| 20  | MIDI Channel    | 37  | Osc 6 Enable    |
-| 21  | Global VCA      | 38  | Osc 6 Transpose |
-| 22  | Osc 1 Enable    | 39  | Osc 6 Shape     |
-| 23  | Osc 1 Transpose | 40  | Osc 7 Enable    |
-| 24  | Osc 1 Shape     | 41  | Osc 7 Transpose |
-| 25  | Osc 2 Enable    | 42  | Osc 7 Shape     |
-| 26  | Osc 2 Transpose | 43  | Osc 8 Enable    |
-| 27  | Osc 2 Shape     | 44  | Osc 8 Transpose |
-| 28  | Osc 3 Enable    | 45  | Osc 8 Shape     |
-| 29  | Osc 3 Transpose |     |                 |
-| 30  | Osc 3 Shape     |     |                 |
-
-CC values (0–127) are scaled to each parameter's full range.
 
 ## Building from Source
 
