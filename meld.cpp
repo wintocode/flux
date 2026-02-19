@@ -338,7 +338,7 @@ static void step(
     int numFrames = numFramesBy4 * 4;
 
     float* out = busFrames + ( p->v[kParamOutput] - 1 ) * numFrames;
-    bool replace = p->v[kParamOutputMode];
+    bool replace = !p->v[kParamOutputMode];
 
     float sampleRate = (float)NT_globals.sampleRate;
     int actualOversample = p->oversample ? 2 : 1;
@@ -432,6 +432,7 @@ static void step(
                 if ( voiceFreq < 0.0f ) voiceFreq = 0.0f;
 
                 float inc = voiceFreq / effectiveSampleRate;
+                if ( inc > 0.5f ) inc = 0.5f;  // Clamp at Nyquist
 
                 // Advance phase (free-running, never reset)
                 meld::phase_advance( p->phase[v], inc );
